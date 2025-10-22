@@ -27,8 +27,20 @@ router.delete('/eliminar/:id', (req, res) => {
 });
 
 router.get('/total', (req, res) => {
-  const total = cart.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
-  res.json({ total });
+  const detalles = cart.map(item => ({
+    id: item.id,
+    nombre: item.nombre,
+    precio_unitario: item.precio,
+    cantidad: item.cantidad,
+    subtotal: item.precio * item.cantidad
+  }));
+
+  const total = detalles.reduce((sum, item) => sum + item.subtotal, 0);
+
+  res.json({
+    total,
+    productos: detalles
+  });
 });
 
 module.exports = router;
