@@ -1,45 +1,68 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../database/db');
 
-let cart = [];
 
 router.get('/', (req, res) => {
-  res.json(cart);
+  db.query('SELECT * FROM carrito', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
+
 
 router.post('/agregar', (req, res) => {
   const { id, nombre, precio, cantidad } = req.body;
-  const productoExistente = cart.find(item => item.id === id);
 
-  if (productoExistente) {
-    productoExistente.cantidad += cantidad;
-  } else {
-    cart.push({ id, nombre, precio, cantidad });
-  }
+  db.query('SELECT * FROM carrito WHERE id = ?', [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
 
-  res.json({ mensaje: 'Producto agregado al carrito', carrito: cart });
+    if (results.length > 0) {
+      
+      const nuevaCantidad = results[0].cantidad + cantidad;
+      db.query('UPDATE carrito SET cantidad = ? WHERE id = ?', [nuevaCantidad, id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ mensaje: 'Cantidad actualizada correctamente' });
+      });
+    } else {
+      
+      db.query(
+        'INSERT INTO carrito (id, nombre, precio, cantidad) VALUES (?, ?, ?, ?)',
+        [id, nombre, precio, cantidad],
+        (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ mensaje: 'Producto agregado al carrito' });
+        }
+      );
+    }
+  });
 });
+
 
 router.delete('/eliminar/:id', (req, res) => {
   const id = parseInt(req.params.id);
-  cart = cart.filter(item => item.id !== id);
-  res.json({ mensaje: 'Producto eliminado', carrito: cart });
+  db.query('DELETE FROM carrito WHERE id = ?', [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ mensaje: 'Producto eliminado del carrito' });
+  });
 });
 
+
 router.get('/total', (req, res) => {
-  const detalles = cart.map(item => ({
-    id: item.id,
-    nombre: item.nombre,
-    precio_unitario: item.precio,
-    cantidad: item.cantidad,
-    subtotal: item.precio * item.cantidad
-  }));
+  db.query('SELECT * FROM carrito', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
 
-  const total = detalles.reduce((sum, item) => sum + item.subtotal, 0);
+    const detalles = results.map(item => ({
+      id: item.id,
+      nombre: item.nombre,
+      precio_unitario: item.precio,
+      cantidad: item.cantidad,
+      subtotal: item.precio * item.cantidad
+    }));
 
-  res.json({
-    total,
-    productos: detalles
+    const total = detalles.reduce((sum, item) => sum + item.subtotal, 0);
+
+    res.json({ total, productos: detalles });
   });
 });
 

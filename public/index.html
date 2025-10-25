@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carrito de Compras</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      color: #333;
+    }
+    input {
+      margin: 5px;
+      padding: 8px;
+    }
+    button {
+      margin: 5px;
+      padding: 8px 12px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    table {
+      margin-top: 20px;
+      border-collapse: collapse;
+      width: 80%;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🛒 Carrito de Compras</h1>
+
+  <div>
+    <input id="id" type="number" placeholder="ID" />
+    <input id="nombre" type="text" placeholder="Nombre del producto" />
+    <input id="precio" type="number" placeholder="Precio" step="0.01" />
+    <input id="cantidad" type="number" placeholder="Cantidad" />
+    <button onclick="agregarProducto()">Agregar</button>
+  </div>
+
+  <table id="tablaCarrito">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Precio</th>
+        <th>Cantidad</th>
+        <th>Subtotal</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2 id="total"></h2>
+
+  <script>
+    const API_URL = "http://localhost:3000/carrito";
+
+    // Cargar productos y actualizar total automáticamente
+    async function cargarCarrito() {
+      try {
+        const res = await fetch(API_URL);
+        const datos = await res.json();
+
+        const tbody = document.querySelector("#tablaCarrito tbody");
+        tbody.innerHTML = "";
+
+        datos.forEach(p => {
+          const precioNum = parseFloat(p.precio);
+          const cantidadNum = parseInt(p.cantidad);
+          const fila = `
+            <tr>
+              <td>${p.id}</td>
+              <td>${p.nombre}</td>
+              <td>$${precioNum.toFixed(2)}</td>
+              <td>${cantidadNum}</td>
+              <td>$${(precioNum * cantidadNum).toFixed(2)}</td>
+              <td><button onclick="eliminarProducto(${p.id})">Eliminar</button></td>
+            </tr>
+          `;
+          tbody.innerHTML += fila;
+        });
+
+        // Actualizar total automáticamente
+        await obtenerTotal();
+
+      } catch (err) {
+        alert("Error al cargar el carrito: " + err);
+      }
+    }
+
+    // Agregar o actualizar un producto
+    async function agregarProducto() {
+      const id = parseInt(document.getElementById('id').value);
+      const nombre = document.getElementById('nombre').value;
+      const precio = parseFloat(document.getElementById('precio').value);
+      const cantidad = parseInt(document.getElementById('cantidad').value);
+
+      if (!id || !nombre || !precio || !cantidad) {
+        alert("Por favor completa todos los campos");
+        return;
+      }
+
+      try {
+        await fetch(`${API_URL}/agregar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, nombre, precio, cantidad })
+        });
+
+        cargarCarrito(); // Carga el carrito y actualiza total automáticamente
+      } catch (err) {
+        alert("Error al agregar producto: " + err);
+      }
+    }
+
+    // Eliminar producto
+    async function eliminarProducto(id) {
+      try {
+        await fetch(`${API_URL}/eliminar/${id}`, { method: "DELETE" });
+        cargarCarrito(); // Carga el carrito y actualiza total automáticamente
+      } catch (err) {
+        alert("Error al eliminar producto: " + err);
+      }
+    }
+
+    // Mostrar total del carrito
+    async function obtenerTotal() {
+      try {
+        const res = await fetch(`${API_URL}/total`);
+        const datos = await res.json();
+        document.getElementById("total").innerText = `Total: $${parseFloat(datos.total).toFixed(2)}`;
+      } catch (err) {
+        alert("Error al obtener total: " + err);
+      }
+    }
+
+    // Cargar carrito automáticamente al abrir la página
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarCarrito();
+    });
+  </script>
+</body>
+</html>
